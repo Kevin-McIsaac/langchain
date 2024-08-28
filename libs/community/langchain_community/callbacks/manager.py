@@ -10,6 +10,11 @@ from typing import (
 
 from langchain_core.tracers.context import register_configure_hook
 
+# TODO: migrate to community 
+#from langchain_community.callbacks.anthropic_callback import (
+from anthropic_callback import (
+    AnthropicTokenUsageCallbackHandler,
+)
 from langchain_community.callbacks.bedrock_anthropic_callback import (
     BedrockAnthropicTokenUsageCallbackHandler,
 )
@@ -22,6 +27,9 @@ logger = logging.getLogger(__name__)
 openai_callback_var: ContextVar[Optional[OpenAICallbackHandler]] = ContextVar(
     "openai_callback", default=None
 )
+anthropic_callback_var: (ContextVar)[
+    Optional[AnthropicTokenUsageCallbackHandler]
+] = ContextVar("anthropic_callback", default=None)
 bedrock_anthropic_callback_var: (ContextVar)[
     Optional[BedrockAnthropicTokenUsageCallbackHandler]
 ] = ContextVar("bedrock_anthropic_callback", default=None)
@@ -33,6 +41,7 @@ comet_tracing_callback_var: ContextVar[Optional[CometTracer]] = ContextVar(
 )
 
 register_configure_hook(openai_callback_var, True)
+register_configure_hook(anthropic_callback_var, True)
 register_configure_hook(bedrock_anthropic_callback_var, True)
 register_configure_hook(
     wandb_tracing_callback_var, True, WandbTracer, "LANGCHAIN_WANDB_TRACING"
@@ -59,6 +68,26 @@ def get_openai_callback() -> Generator[OpenAICallbackHandler, None, None]:
     yield cb
     openai_callback_var.set(None)
 
+
+@contextmanager
+def get_anthropic_callback() -> (
+    Generator[AnthropicTokenUsageCallbackHandler, None, None]
+):
+    """Get the anthropic callback handler in a context manager.
+    which conveniently exposes token and cost information.
+
+    Returns:
+        AnthropicTokenUsageCallbackHandler:
+            The anthropic callback handler.
+
+    Example:
+        >>> with get_anthropic_callback() as cb:
+        ...     # Use the anthropic callback handler
+    """
+    cb = AnthropicTokenUsageCallbackHandler()
+    anthropic_callback_var.set(cb)
+    yield cb
+    anthropic_callback_var.set(None)
 
 @contextmanager
 def get_bedrock_anthropic_callback() -> (
